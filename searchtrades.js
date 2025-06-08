@@ -1,7 +1,7 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
-const { formatTradeLine } = require('./trade');
+const { formatTradeLine } = require('../tradeHelpers');
 
 const dataPath = path.join(__dirname, '../data/trades.json');
 
@@ -33,23 +33,26 @@ module.exports = {
             return interaction.reply({ content: '❌ No matching trades found.', ephemeral: true });
         }
 
-        const chunks = [];
-        let current = '';
-        for (const trade of matches) {
-            const line = formatTradeLine(trade);
-            if ((current + '\n\n' + line).length > 1900) {
-                chunks.push(current);
-                current = line;
+        const embed = new EmbedBuilder()
+            .setTitle(`🔍 Search Results for "${query}"`)
+            .setColor(0x00cc99);
+
+        const descriptions = matches.map(t => formatTradeLine(t));
+        let descBlock = "";
+        const embeds = [];
+
+        for (const desc of descriptions) {
+            if ((descBlock + '\n\n' + desc).length > 4000) {
+                embeds.push(embed.setDescription(descBlock));
+                descBlock = desc;
             } else {
-                current += (current ? '\n\n' : '') + line;
+                descBlock += (descBlock ? '\n\n' : '') + desc;
             }
         }
-        chunks.push(current);
-
-        for (const chunk of chunks) {
-            await interaction.user.send(chunk);
+        if (descBlock) {
+            embeds.push(embed.setDescription(descBlock));
         }
 
-        await interaction.reply({ content: `📬 Found ${matches.length} trade(s). Sent to your DMs.`, ephemeral: true });
+        await interaction.reply({ embeds, ephemeral: true });
     }
 };
