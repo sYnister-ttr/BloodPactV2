@@ -1,7 +1,7 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
-const { formatTradeLine } = require('./trade');
+const { formatTradeLine } = require('../tradeHelpers');
 
 const dataPath = path.join(__dirname, '../data/trades.json');
 
@@ -27,27 +27,28 @@ module.exports = {
             grouped[key].push(trade);
         }
 
-        for (const [category, list] of Object.entries(grouped)) {
-            const header = `🔹 **${category.toUpperCase()}**\n`;
-            const blocks = [];
-            let current = header;
+        const embeds = [];
 
-            for (const trade of list) {
-                const line = formatTradeLine(trade);
-                if ((current + '\n\n' + line).length > 1900) {
-                    blocks.push(current);
-                    current = header + line;
+        for (const [category, list] of Object.entries(grouped)) {
+            const embed = new EmbedBuilder()
+                .setTitle(`📦 ${category.toUpperCase()}`)
+                .setColor(0x0099ff);
+
+            const descriptions = list.map(t => formatTradeLine(t));
+            let descBlock = "";
+            for (const desc of descriptions) {
+                if ((descBlock + '\n\n' + desc).length > 4000) {
+                    embeds.push(embed.setDescription(descBlock));
+                    descBlock = desc;
                 } else {
-                    current += '\n\n' + line;
+                    descBlock += (descBlock ? '\n\n' : '') + desc;
                 }
             }
-
-            blocks.push(current);
-            for (const b of blocks) {
-                await interaction.user.send(b);
+            if (descBlock) {
+                embeds.push(embed.setDescription(descBlock));
             }
         }
 
-        await interaction.reply({ content: '📬 Sent all current trades to your DMs.', ephemeral: true });
+        await interaction.reply({ embeds, ephemeral: true });
     }
 };
